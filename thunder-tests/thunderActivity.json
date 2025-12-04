@@ -1,0 +1,53 @@
+[
+    {
+        "_id": "2b7ba821-1770-4ebb-acda-27c33489db18",
+        "colId": "history",
+        "containerId": "",
+        "name": "https://www.thunderclient.com/welcome",
+        "url": "http://localhost:5000/api/patients",
+        "method": "POST",
+        "sortNum": 0,
+        "created": "2025-12-04T04:24:15.616Z",
+        "modified": "2025-12-04T04:30:07.435Z",
+        "headers": [],
+        "body": {
+            "type": "json",
+            "raw": "{\r\n  \"name\": \"Test Patient\",\r\n  \"age\": 30,\r\n  \"gender\": \"female\",\r\n  \"phone\": \"9876543210\"\r\n}\r\n",
+            "form": []
+        }
+    },
+    {
+        "_id": "757a1b92-1c4d-4a81-a0eb-48fba351b09f",
+        "colId": "history",
+        "containerId": "",
+        "name": "http://localhost:5000/api/records",
+        "url": "http://localhost:5000/api/records",
+        "method": "POST",
+        "sortNum": 0,
+        "created": "2025-12-04T04:36:02.182Z",
+        "modified": "2025-12-04T04:36:02.182Z",
+        "headers": [],
+        "body": {
+            "type": "json",
+            "raw": "{\r\n  \"patientId\": \"69310d462795686cbf087e0a\",\r\n  \"note\": \"Mild fever and headache\",\r\n  \"vitals\": {\r\n    \"bp\": \"120/80\",\r\n    \"pulse\": \"78\",\r\n    \"temp\": \"99F\"\r\n  }\r\n}\r\n",
+            "form": []
+        }
+    },
+    {
+        "_id": "f3b025d1-71a5-4b4a-84ef-2647f813b5fc",
+        "colId": "history",
+        "containerId": "",
+        "name": "http://localhost:5000/api/appointments",
+        "url": "http://localhost:5000/api/appointments",
+        "method": "POST",
+        "sortNum": 0,
+        "created": "2025-12-04T04:36:58.260Z",
+        "modified": "2025-12-04T04:36:58.260Z",
+        "headers": [],
+        "body": {
+            "type": "json",
+            "raw": "{\r\n  \"patientId\": \"69310d462795686cbf087e0a\",\r\n  \"date\": \"2025-12-10T10:30:00.000Z\",\r\n  \"reason\": \"Follow-up check\"\r\n}\r\n",
+            "form": []
+        }
+    }
+]

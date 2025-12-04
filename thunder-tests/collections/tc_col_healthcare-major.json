@@ -1,0 +1,26 @@
+{
+    "_id": "2ddbc28b-630f-4808-b60c-6c714448cb4f",
+    "colName": "healthcare-major",
+    "created": "2025-12-04T04:48:48.553Z",
+    "sortNum": 10000,
+    "folders": [],
+    "requests": [
+        {
+            "_id": "e9a66391-07e1-4bb6-8e87-0a14422fb9be",
+            "colId": "2ddbc28b-630f-4808-b60c-6c714448cb4f",
+            "containerId": "",
+            "name": "http://localhost:5000/api/appointments",
+            "url": "http://localhost:5000/api/appointments",
+            "method": "POST",
+            "sortNum": 10000,
+            "created": "2025-12-04T04:48:48.564Z",
+            "modified": "2025-12-04T04:48:48.565Z",
+            "headers": [],
+            "body": {
+                "type": "json",
+                "raw": "{\r\n  \"patientId\": \"69310d462795686cbf087e0a\",\r\n  \"date\": \"2025-12-10T10:30:00.000Z\",\r\n  \"reason\": \"Follow-up check\"\r\n}\r\n",
+                "form": []
+            }
+        }
+    ]
+}
