@@ -1,4 +1,4 @@
-﻿import React, { useEffect, useState } from "react";
+import React, { useEffect, useState } from "react";
 import { getPatients } from "../api/api";
 import { Link } from "react-router-dom";
 
