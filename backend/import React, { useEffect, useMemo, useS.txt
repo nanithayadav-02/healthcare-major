@@ -1,0 +1,484 @@
+import React, { useEffect, useMemo, useState } from "react";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { Label } from "@/components/ui/label";
+import { Switch } from "@/components/ui/switch";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { Download, Upload, Trash2, Plus, Play, Pause, Activity, NotebookPen, Heart, Info } from "lucide-react";
+import { LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid } from "recharts";
+
+/**
+ * Mental Health Tracker — Local-First MVP
+ * --------------------------------------
+ * Purpose: Give you a private, local-only mental health journaling and mood tracking app
+ * that you can run instantly in a Next.js/React project. No server required. Data is
+ * stored in localStorage and can be exported/imported as JSON.
+ *
+ * Ethics & Safety:
+ * - This is NOT a medical device and does not diagnose or treat any condition.
+ * - For urgent help, direct users to local emergency services.
+ * - Avoid collecting names, emails, or exact locations in this local-first build.
+ * - If you later add cloud sync, implement encryption in transit & at rest and a clear consent flow.
+ */
+
+// ---------- Types ----------
+
+type MoodLevel = 1 | 2 | 3 | 4 | 5; // 1=very low, 5=very high
+
+interface MoodEntry {
+  id: string;
+  dateISO: string; // e.g., 2025-08-13T14:05:00.000Z
+  mood: MoodLevel;
+  tags: string[]; // e.g., ["study", "family", "social"]
+  note?: string;
+}
+
+interface JournalEntry {
+  id: string;
+  dateISO: string;
+  title: string;
+  content: string;
+}
+
+interface BreathSession {
+  id: string;
+  dateISO: string;
+  seconds: number; // completed duration
+}
+
+interface Settings {
+  dailyReminder: boolean; // UI toggle only in local MVP
+  anonymizedExport: boolean; // if true, strip note content on export
+}
+
+interface AppData {
+  mood: MoodEntry[];
+  journal: JournalEntry[];
+  breath: BreathSession[];
+  settings: Settings;
+  version: string;
+}
+
+const STORAGE_KEY = "mhtracker:data:v1";
+
+// ---------- Utils ----------
+
+const uid = () => Math.random().toString(36).slice(2) + Date.now().toString(36);
+const todayISO = () => new Date().toISOString();
+
+function loadData(): AppData {
+  try {
+    const raw = localStorage.getItem(STORAGE_KEY);
+    if (!raw) throw new Error("empty");
+    const parsed = JSON.parse(raw) as AppData;
+    return parsed;
+  } catch {
+    return {
+      mood: [],
+      journal: [],
+      breath: [],
+      settings: { dailyReminder: false, anonymizedExport: false },
+      version: "1.0.0",
+    };
+  }
+}
+
+function saveData(data: AppData) {
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
+}
+
+function formatDateShort(iso: string) {
+  const d = new Date(iso);
+  return d.toLocaleDateString(undefined, { month: "short", day: "numeric" });
+}
+
+function clampMood(n: number): MoodLevel {
+  return Math.min(5, Math.max(1, Math.round(n))) as MoodLevel;
+}
+
+// ---------- Main Component ----------
+
+export default function MentalHealthTracker() {
+  const [data, setData] = useState<AppData>(() => loadData());
+  const [mood, setMood] = useState<MoodLevel>(3);
+  const [tags, setTags] = useState<string>("");
+  const [note, setNote] = useState<string>("");
+
+  const [jTitle, setJTitle] = useState("");
+  const [jContent, setJContent] = useState("");
+
+  const [timer, setTimer] = useState<number>(60); // default 60s
+  const [running, setRunning] = useState<boolean>(false);
+
+  useEffect(() => {
+    const id = setInterval(() => {
+      if (running && timer > 0) setTimer((t) => t - 1);
+      if (running && timer === 0) setRunning(false);
+    }, 1000);
+    return () => clearInterval(id);
+  }, [running, timer]);
+
+  // Persist
+  useEffect(() => {
+    saveData(data);
+  }, [data]);
+
+  const moodChartData = useMemo(() => {
+    // group by date (yyyy-mm-dd), avg mood
+    const map = new Map<string, number[]>();
+    data.mood.forEach((m) => {
+      const d = new Date(m.dateISO);
+      const key = d.toISOString().slice(0, 10);
+      const arr = map.get(key) || [];
+      arr.push(m.mood);
+      map.set(key, arr);
+    });
+    return Array.from(map.entries())
+      .sort(([a], [b]) => (a < b ? -1 : 1))
+      .map(([date, arr]) => ({ date, mood: arr.reduce((s, x) => s + x, 0) / arr.length }));
+  }, [data.mood]);
+
+  const last7Avg = useMemo(() => {
+    const cutoff = Date.now() - 7 * 24 * 3600 * 1000;
+    const recent = data.mood.filter((m) => new Date(m.dateISO).getTime() >= cutoff);
+    if (recent.length === 0) return null;
+    const avg = recent.reduce((s, x) => s + x.mood, 0) / recent.length;
+    return avg.toFixed(2);
+  }, [data.mood]);
+
+  // Handlers
+  const addMood = () => {
+    const entry: MoodEntry = {
+      id: uid(),
+      dateISO: todayISO(),
+      mood,
+      tags: tags
+        .split(",")
+        .map((t) => t.trim())
+        .filter(Boolean),
+      note: note.trim() || undefined,
+    };
+    setData((d) => ({ ...d, mood: [entry, ...d.mood].slice(0, 3650) }));
+    setTags("");
+    setNote("");
+  };
+
+  const addJournal = () => {
+    if (!jTitle.trim() && !jContent.trim()) return;
+    const entry: JournalEntry = {
+      id: uid(),
+      dateISO: todayISO(),
+      title: jTitle.trim() || "Untitled",
+      content: jContent.trim(),
+    };
+    setData((d) => ({ ...d, journal: [entry, ...d.journal].slice(0, 2000) }));
+    setJTitle("");
+    setJContent("");
+  };
+
+  const resetAll = () => {
+    if (!confirm("This will permanently delete all local data. Continue?")) return;
+    const fresh = {
+      mood: [],
+      journal: [],
+      breath: [],
+      settings: { dailyReminder: false, anonymizedExport: false },
+      version: data.version,
+    } satisfies AppData;
+    setData(fresh);
+  };
+
+  const exportJSON = () => {
+    const bundle: AppData = data.settings.anonymizedExport
+      ? {
+          ...data,
+          mood: data.mood.map(({ note, ...rest }) => rest), // strip notes
+          journal: data.journal.map(({ content, ...rest }) => rest), // strip journal content
+        }
+      : data;
+    const blob = new Blob([JSON.stringify(bundle, null, 2)], { type: "application/json" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `mhtracker-export-${new Date().toISOString().slice(0, 10)}.json`;
+    a.click();
+    URL.revokeObjectURL(url);
+  };
+
+  const importJSON = (file?: File) => {
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = () => {
+      try {
+        const parsed = JSON.parse(String(reader.result)) as AppData;
+        if (!parsed || !parsed.version) throw new Error("Invalid file");
+        setData(parsed);
+      } catch (e) {
+        alert("Could not import file: " + (e as Error).message);
+      }
+    };
+    reader.readAsText(file);
+  };
+
+  const completeBreath = () => {
+    setData((d) => ({
+      ...d,
+      breath: [{ id: uid(), dateISO: todayISO(), seconds: timer }, ...d.breath].slice(0, 1000),
+    }));
+  };
+
+  const deleteMood = (id: string) => setData((d) => ({ ...d, mood: d.mood.filter((m) => m.id !== id) }));
+  const deleteJournal = (id: string) => setData((d) => ({ ...d, journal: d.journal.filter((j) => j.id !== id) }));
+
+  return (
+    <div className="min-h-screen w-full bg-gradient-to-b from-slate-50 to-white p-4 md:p-8">
+      <div className="mx-auto max-w-6xl">
+        <header className="mb-6 flex items-center justify-between">
+          <div>
+            <h1 className="text-3xl font-bold tracking-tight">Mental Health Tracker</h1>
+            <p className="text-sm text-muted-foreground">Local-first. Private by default. You control your data.</p>
+          </div>
+          <div className="flex gap-2">
+            <Dialog>
+              <DialogTrigger asChild>
+                <Button variant="outline"><Info className="mr-2 h-4 w-4"/>Safety</Button>
+              </DialogTrigger>
+              <DialogContent>
+                <DialogHeader>
+                  <DialogTitle>Important Safety Note</DialogTitle>
+                </DialogHeader>
+                <p className="text-sm text-muted-foreground">
+                  This app is a personal tracking tool and is <b>not</b> a medical device. If you ever feel at risk of harm, contact local emergency services immediately. For non-urgent support, consider reaching out to a trusted person or licensed professional.
+                </p>
+              </DialogContent>
+            </Dialog>
+            <Button variant="outline" onClick={exportJSON}><Download className="mr-2 h-4 w-4"/>Export</Button>
+            <label className="inline-flex items-center">
+              <input type="file" accept="application/json" className="hidden" onChange={(e) => importJSON(e.target.files?.[0])} />
+              <span className="inline-flex"><Button variant="outline"><Upload className="mr-2 h-4 w-4"/>Import</Button></span>
+            </label>
+            <Button variant="destructive" onClick={resetAll}><Trash2 className="mr-2 h-4 w-4"/>Reset</Button>
+          </div>
+        </header>
+
+        <Alert className="mb-6">
+          <AlertTitle>Privacy-first design</AlertTitle>
+          <AlertDescription>
+            Your entries stay on this device. There’s no account and no server in this MVP. If you choose to add cloud sync later, ensure consent, encryption, and the ability to delete data.
+          </AlertDescription>
+        </Alert>
+
+        <Tabs defaultValue="track" className="w-full">
+          <TabsList className="grid w-full grid-cols-4">
+            <TabsTrigger value="track">Track</TabsTrigger>
+            <TabsTrigger value="journal">Journal</TabsTrigger>
+            <TabsTrigger value="insights">Insights</TabsTrigger>
+            <TabsTrigger value="settings">Settings</TabsTrigger>
+          </TabsList>
+
+          {/* Track Tab */}
+          <TabsContent value="track" className="mt-4">
+            <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+              <Card className="shadow-sm">
+                <CardHeader>
+                  <CardTitle className="flex items-center"><Activity className="mr-2 h-5 w-5"/>Mood Check-in</CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  <div className="flex items-center gap-3">
+                    <Label className="w-24">Mood</Label>
+                    <input
+                      type="range"
+                      min={1}
+                      max={5}
+                      step={1}
+                      value={mood}
+                      onChange={(e) => setMood(clampMood(Number(e.target.value)))}
+                      className="w-full"
+                    />
+                    <span className="inline-flex h-8 min-w-8 items-center justify-center rounded-full bg-slate-100 px-2 text-sm font-semibold">{mood}</span>
+                  </div>
+                  <div className="flex items-center gap-3">
+                    <Label className="w-24">Tags</Label>
+                    <Input placeholder="e.g., study, family, social" value={tags} onChange={(e) => setTags(e.target.value)} />
+                  </div>
+                  <div className="space-y-2">
+                    <Label>Notes (optional)</Label>
+                    <Textarea rows={3} placeholder="What influenced your mood today?" value={note} onChange={(e) => setNote(e.target.value)} />
+                  </div>
+                  <Button onClick={addMood}><Plus className="mr-2 h-4 w-4"/>Add Check-in</Button>
+                </CardContent>
+              </Card>
+
+              <Card className="shadow-sm">
+                <CardHeader>
+                  <CardTitle className="flex items-center"><Heart className="mr-2 h-5 w-5"/>Breathing Timer</CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  <div className="flex items-center gap-3">
+                    <Label className="w-24">Seconds</Label>
+                    <Input type="number" min={10} max={1800} value={timer} onChange={(e) => setTimer(Math.max(0, Number(e.target.value)))} />
+                  </div>
+                  <div className="flex items-center gap-2">
+                    {!running ? (
+                      <Button onClick={() => setRunning(true)}><Play className="mr-2 h-4 w-4"/>Start</Button>
+                    ) : (
+                      <Button variant="secondary" onClick={() => setRunning(false)}><Pause className="mr-2 h-4 w-4"/>Pause</Button>
+                    )}
+                    <Button variant="outline" onClick={() => setTimer(60)}>Reset to 60s</Button>
+                    <Button variant="outline" onClick={completeBreath}>Log Session</Button>
+                  </div>
+                  <p className="text-sm text-muted-foreground">Try a 4-4-6 rhythm: inhale 4s, hold 4s, exhale 6s.</p>
+                </CardContent>
+              </Card>
+            </div>
+
+            <Card className="mt-4 shadow-sm">
+              <CardHeader>
+                <CardTitle>Recent Check-ins</CardTitle>
+              </CardHeader>
+              <CardContent>
+                {data.mood.length === 0 ? (
+                  <p className="text-sm text-muted-foreground">No entries yet. Log your first mood above.</p>) : (
+                  <ul className="space-y-3">
+                    {data.mood.slice(0, 10).map((m) => (
+                      <li key={m.id} className="flex items-start justify-between rounded-xl border p-3">
+                        <div>
+                          <div className="text-sm font-semibold">{formatDateShort(m.dateISO)} • Mood {m.mood}</div>
+                          {(m.tags?.length ?? 0) > 0 && (
+                            <div className="mt-1 text-xs text-muted-foreground">{m.tags.join(", ")}</div>
+                          )}
+                          {m.note && <div className="mt-2 text-sm">{m.note}</div>}
+                        </div>
+                        <Button variant="ghost" size="icon" onClick={() => deleteMood(m.id)} title="Delete"><Trash2 className="h-4 w-4"/></Button>
+                      </li>
+                    ))}
+                  </ul>
+                )}
+              </CardContent>
+            </Card>
+          </TabsContent>
+
+          {/* Journal Tab */}
+          <TabsContent value="journal" className="mt-4">
+            <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+              <Card className="shadow-sm">
+                <CardHeader>
+                  <CardTitle className="flex items-center"><NotebookPen className="mr-2 h-5 w-5"/>New Entry</CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-3">
+                  <Input placeholder="Title (optional)" value={jTitle} onChange={(e) => setJTitle(e.target.value)} />
+                  <Textarea rows={8} placeholder="Write freely about your day, thoughts, or progress..." value={jContent} onChange={(e) => setJContent(e.target.value)} />
+                  <div className="flex justify-end">
+                    <Button onClick={addJournal}><Plus className="mr-2 h-4 w-4"/>Save Entry</Button>
+                  </div>
+                </CardContent>
+              </Card>
+
+              <Card className="shadow-sm">
+                <CardHeader>
+                  <CardTitle>Recent Notes</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  {data.journal.length === 0 ? (
+                    <p className="text-sm text-muted-foreground">No journal entries yet.</p>
+                  ) : (
+                    <ul className="space-y-3">
+                      {data.journal.slice(0, 10).map((j) => (
+                        <li key={j.id} className="rounded-xl border p-3">
+                          <div className="flex items-center justify-between">
+                            <div className="font-semibold">{formatDateShort(j.dateISO)} • {j.title}</div>
+                            <Button variant="ghost" size="icon" onClick={() => deleteJournal(j.id)} title="Delete"><Trash2 className="h-4 w-4"/></Button>
+                          </div>
+                          {j.content && <p className="mt-1 text-sm whitespace-pre-wrap">{j.content}</p>}
+                        </li>
+                      ))}
+                    </ul>
+                  )}
+                </CardContent>
+              </Card>
+            </div>
+          </TabsContent>
+
+          {/* Insights Tab */}
+          <TabsContent value="insights" className="mt-4">
+            <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
+              <Card className="md:col-span-2 shadow-sm">
+                <CardHeader>
+                  <CardTitle>Mood Trend</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  {moodChartData.length === 0 ? (
+                    <p className="text-sm text-muted-foreground">Track moods to see your trend here.</p>
+                  ) : (
+                    <div className="h-64 w-full">
+                      <ResponsiveContainer width="100%" height="100%">
+                        <LineChart data={moodChartData} margin={{ top: 10, right: 20, left: 0, bottom: 0 }}>
+                          <CartesianGrid strokeDasharray="3 3" />
+                          <XAxis dataKey="date" />
+                          <YAxis domain={[1, 5]} ticks={[1,2,3,4,5]} />
+                          <Tooltip />
+                          <Line type="monotone" dataKey="mood" dot={false} strokeWidth={2} />
+                        </LineChart>
+                      </ResponsiveContainer>
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
+
+              <Card className="shadow-sm">
+                <CardHeader>
+                  <CardTitle>Quick Stats (7 days)</CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-2 text-sm">
+                  <div>Average mood: <b>{last7Avg ?? "—"}</b></div>
+                  <div>Check-ins: <b>{data.mood.filter(m => (Date.now() - new Date(m.dateISO).getTime()) <= 7*24*3600*1000).length}</b></div>
+                  <div>Breath sessions: <b>{data.breath.filter(b => (Date.now() - new Date(b.dateISO).getTime()) <= 7*24*3600*1000).length}</b></div>
+                </CardContent>
+              </Card>
+            </div>
+          </TabsContent>
+
+          {/* Settings Tab */}
+          <TabsContent value="settings" className="mt-4">
+            <Card className="shadow-sm">
+              <CardHeader>
+                <CardTitle>Preferences</CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <div className="font-medium">Daily reminder (local)</div>
+                    <div className="text-sm text-muted-foreground">Shows a nudge in the UI — no notifications in this MVP.</div>
+                  </div>
+                  <Switch checked={data.settings.dailyReminder} onCheckedChange={(v) => setData(d => ({ ...d, settings: { ...d.settings, dailyReminder: v } }))} />
+                </div>
+                <div className="flex items-center justify-between">
+                  <div>
+                    <div className="font-medium">Anonymize on export</div>
+                    <div className="text-sm text-muted-foreground">Strips note & journal content from JSON exports.</div>
+                  </div>
+                  <Switch checked={data.settings.anonymizedExport} onCheckedChange={(v) => setData(d => ({ ...d, settings: { ...d.settings, anonymizedExport: v } }))} />
+                </div>
+              </CardContent>
+            </Card>
+          </TabsContent>
+        </Tabs>
+
+        {data.settings.dailyReminder && (
+          <Alert className="mt-6">
+            <AlertTitle>Gentle nudge</AlertTitle>
+            <AlertDescription>Have you checked in with yourself today? A quick 60s breathing session can help.</AlertDescription>
+          </Alert>
+        )}
+
+        <footer className="mt-10 text-center text-xs text-muted-foreground">
+          v{data.version} • Local-first build • Please seek professional help when needed.
+        </footer>
+      </div>
+    </div>
+  );
+}

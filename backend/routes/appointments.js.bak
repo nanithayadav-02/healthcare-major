@@ -1,0 +1,55 @@
+﻿# backup if exists then create fresh routes/appointments.js
+if (Test-Path .\routes\appointments.js) {
+  Copy-Item .\routes\appointments.js .\routes\appointments.js.bak -Force
+  Write-Host "Backed up existing routes\\appointments.js -> routes\\appointments.js.bak"
+}
+
+@"
+const express = require('express');
+const router = express.Router();
+const Appointment = require('../models/Appointment'); // match your model filename (Appointment.js)
+
+// GET /api/appointments?patientId=...
+router.get('/', async (req, res) => {
+  try {
+    const { patientId } = req.query;
+    const filter = {};
+    if (patientId) filter.patientId = patientId;
+
+    // If Appointment has refs to patient/doctor you can populate them; otherwise return raw docs
+    const items = await Appointment.find(filter).sort({ date: 1 }).lean();
+    res.json(Array.isArray(items) ? items : []);
+  } catch (err) {
+    console.error('GET /api/appointments error:', err);
+    res.status(500).json({ error: 'Failed to fetch appointments', details: err.message });
+  }
+});
+
+// POST /api/appointments
+router.post('/', async (req, res) => {
+  try {
+    const { patientId, doctorId, date, slot, notes, reason } = req.body;
+    if (!patientId) return res.status(400).json({ error: 'patientId required' });
+    if (!date && !slot) return res.status(400).json({ error: 'date or slot required' });
+
+    const newAppt = await Appointment.create({
+      patientId,
+      doctorId,
+      date: date ? new Date(date) : undefined,
+      slot,
+      notes: notes || reason || '',
+      status: 'pending',
+      createdAt: new Date()
+    });
+
+    res.status(201).json(newAppt);
+  } catch (err) {
+    console.error('POST /api/appointments error:', err);
+    res.status(500).json({ error: 'Failed to create appointment', details: err.message });
+  }
+});
+
+module.exports = router;
+"@ | Set-Content -Path .\routes\appointments.js -Encoding UTF8
+
+Write-Host "Wrote new routes\\appointments.js"
