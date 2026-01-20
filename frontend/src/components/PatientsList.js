@@ -1,12 +1,20 @@
 import React, { useEffect, useState } from "react";
 import { getPatients } from "../api/api";
-import { Link } from "react-router-dom";
+import { useNavigate } from "react-router-dom";
 
 export default function PatientsList() {
-  console.log("DEBUG: PatientsList mounted");
   const [patients, setPatients] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
+  const navigate = useNavigate();
+
+  function openRecords(patientId) {
+    navigate("/appointments");
+  }
+  function openAppointments(patientId) {
+    // use the "patientId" query param (matches backend/api helper)
+    navigate(`/appointments?patientId=${patientId}`);
+  }
 
   useEffect(() => {
     let mounted = true;
@@ -36,17 +44,19 @@ export default function PatientsList() {
             <div className="hint">List of registered patients</div>
           </div>
         </div>
+
         <div className="nav">
-          <Link to="/add"><button className="btn btn-primary">+ Add Patient</button></Link>
+          <button className="btn btn-primary" onClick={() => navigate("/add")}>+ Add Patient</button>
         </div>
       </div>
 
-      <div className="card">
-        {error && <div style={{ color: "crimson", marginBottom: 8 }}>{error}</div>}
+      <div className="card pastel">
+        {error && <div style={{ color: "crimson" }}>{error}</div>}
+
         {loading ? (
           <div>Loading…</div>
         ) : patients.length === 0 ? (
-          <div className="hint">No patients yet. Click &quot;Add Patient&quot; to create one.</div>
+          <div className="hint">No patients yet. Click “Add Patient”.</div>
         ) : (
           <table className="table" role="table">
             <thead>
@@ -58,6 +68,7 @@ export default function PatientsList() {
                 <th>Actions</th>
               </tr>
             </thead>
+
             <tbody>
               {patients.map((p) => (
                 <tr key={p._id}>
@@ -65,13 +76,10 @@ export default function PatientsList() {
                   <td>{p.age}</td>
                   <td>{p.gender}</td>
                   <td>{p.phone}</td>
+
                   <td>
-                    <span style={{ marginRight: 8 }}>
-                      <Link to={`/records/${p._id}`}><button className="btn btn-ghost">Records</button></Link>
-                    </span>
-                    <span>
-                      <Link to={`/appointments?patientId=${p._id}`}><button className="btn btn-ghost">Appointments</button></Link>
-                    </span>
+                    <button className="btn btn-ghost" onClick={() => openRecords(p._id)}>Records</button>
+                    <button className="btn btn-ghost" onClick={() => openAppointments(p._id)}>Appointments</button>
                   </td>
                 </tr>
               ))}

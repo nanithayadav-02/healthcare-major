@@ -1,0 +1,36 @@
+﻿.topnav{
+  padding: 8px 0;
+  background: transparent;
+}
+.topnav .nav-links a{
+  margin-right: 16px;
+  color: #6b2b7f;
+  text-decoration: underline;
+  font-weight:600;
+}
+.topnav .nav-links a:hover{ opacity: .85; }
+/* src/components/TopNav.css */
+.topnav{
+  padding: 6px 0;
+  background: transparent;
+}
+.topnav-inner {
+  display:flex;
+  align-items:center;
+  gap:18px;
+  padding: 0;
+}
+.topnav .nav-links a{
+  margin-right: 18px;
+  color: #6b2b7f;
+  text-decoration: none;
+  font-weight:600;
+  padding:6px 8px;
+  border-radius:8px;
+}
+.topnav .nav-links a:hover{ opacity: .9; }
+.topnav .nav-links a.active{
+  background: linear-gradient(90deg,#dbeafe,#ffd6e0);
+  color: #071331;
+  box-shadow: 0 6px 14px rgba(3,10,27,0.04);
+}

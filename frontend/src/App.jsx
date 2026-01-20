@@ -1,0 +1,24 @@
+﻿import React from 'react';
+import Header from './components/Header';
+import TopNav from './components/TopNav';
+import './index.css';
+import PatientsList from './components/PatientsList';
+
+export default function App() {
+  return (
+    <div className='App'>
+      <Header />
+      <TopNav />
+      <main className='container'>
+        <section className='card' style={{ marginTop: 20 }}>
+          <h2 style={{ margin: 0 }}>Patients</h2>
+          <p style={{ color: 'var(--muted)', marginTop: 6 }}>List of registered patients</p>
+        </section>
+
+        <div style={{ marginTop: 20 }}>
+          <PatientsList />
+        </div>
+      </main>
+    </div>
+  );
+}

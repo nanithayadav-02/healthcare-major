@@ -1,0 +1,86 @@
+@import url('https://fonts.googleapis.com/css2?family=Poppins:wght@400;600;700&display=swap');
+
+:root{
+  --pink-1: #ffd6e0;
+  --pink-2: #ffc3d6;
+  --blue-1: #dbeafe;
+  --blue-2: #cfe8ff;
+  --accent-gradient: linear-gradient(135deg,var(--pink-1),var(--blue-1));
+  --card-bg: rgba(255,255,255,0.78);
+  --text-primary: #071331;
+  --muted: #64748b;
+  --radius-lg: 14px;
+  --shadow-soft: 0 10px 30px rgba(3,10,27,0.06);
+}
+
+/* Header container (edge-to-edge gradient) */
+.medisync-header{
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  padding: 28px 20px;
+  background: var(--accent-gradient);
+  backdrop-filter: blur(6px);
+  -webkit-backdrop-filter: blur(6px);
+  box-shadow: var(--shadow-soft);
+  position: relative;
+  z-index: 10;
+}
+
+/* inner hero panel (centered card) */
+.medisync-hero{
+  display:flex;
+  align-items:center;
+  gap:18px;
+  padding: 12px 22px;
+  border-radius: 18px;
+  background: linear-gradient(180deg, rgba(255,255,255,0.72), rgba(255,255,255,0.42));
+  box-shadow: 0 8px 22px rgba(3,10,27,0.06);
+  align-items:center;
+  max-width: 1100px;
+  width: 100%;
+}
+
+/* badge */
+.logo-badge{
+  width:64px;
+  height:64px;
+  min-width:64px;
+  border-radius:12px;
+  display:grid;
+  place-items:center;
+  background: linear-gradient(135deg,var(--pink-1),var(--blue-1));
+  box-shadow: 0 6px 18px rgba(3,10,27,0.06);
+}
+
+/* text block */
+.brand-text{
+  display:flex;
+  flex-direction:column;
+  justify-content:center;
+}
+
+.brand-title{
+  margin:0;
+  font-family: 'Poppins', sans-serif;
+  font-weight:700;
+  font-size:30px;
+  letter-spacing:3px;
+  color: var(--text-primary);
+  line-height:1;
+}
+
+.brand-tag{
+  margin: 6px 0 0 0;
+  color: var(--muted);
+  font-size:13px;
+  font-weight:600;
+}
+
+/* Responsive tweaks */
+@media (max-width: 640px){
+  .medisync-hero{ gap:12px; padding:10px 14px; border-radius:12px; }
+  .brand-title{ font-size:20px; letter-spacing:1.5px; }
+  .logo-badge{ width:52px; height:52px; min-width:52px; }
+  .brand-tag{ font-size:12px; }
+}
